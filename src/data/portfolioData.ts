@@ -26,7 +26,7 @@ export const projectsData: Project[] = [
     subtitle: 'Мэргэжлийн чиг баримжаа & Ирээдүйн зорилго',
     description:
       'Ирээдүйд ямар мэргэжилтэн болох, технологийн салбарт ямар амжилтанд хүрэхийг хүсэж байгаагаа илэрхийлсэн бие даасан танилцуулга вэб төсөл.',
-    url: 'https://superlative-figolla-438f7b.netlify.app/dream-job.html',
+    url: 'https://superlative-figolla-438f7b.netlify.app/my%20dreamjob.html',
     tags: ['Вэбсайт', 'Танилцуулга', 'Зорилго'],
     category: 'Төлөвлөлт & Хүсэл эрмэлзэл',
     featured: true,
