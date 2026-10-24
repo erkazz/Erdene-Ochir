@@ -57,6 +57,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
             Миний бүтээлүүд
           </button>
           <button
+            onClick={() => scrollToSection('game')}
+            className="text-sm text-amber-300 hover:text-white transition-colors cursor-pointer"
+          >
+            Сорилт тоглоом 🎯
+          </button>
+          <button
+            onClick={() => scrollToSection('roadmap')}
+            className="text-sm text-[hsl(var(--muted-foreground))] hover:text-white transition-colors cursor-pointer"
+          >
+            Замын зураг
+          </button>
+          <button
             onClick={() => scrollToSection('about')}
             className="text-sm text-[hsl(var(--muted-foreground))] hover:text-white transition-colors cursor-pointer"
           >
@@ -66,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
             onClick={() => scrollToSection('hobbies')}
             className="text-sm text-[hsl(var(--muted-foreground))] hover:text-white transition-colors cursor-pointer"
           >
-            Хобби & Сонирхол
+            Хобби
           </button>
           <a
             href={profileData.netlifyUrl}
@@ -115,6 +127,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
             className="block w-full text-left py-2 text-[hsl(var(--muted-foreground))] hover:text-white text-base"
           >
             Миний бүтээлүүд
+          </button>
+          <button
+            onClick={() => scrollToSection('game')}
+            className="block w-full text-left py-2 text-amber-300 font-medium text-base"
+          >
+            Сорилт тоглоом 🎯
+          </button>
+          <button
+            onClick={() => scrollToSection('roadmap')}
+            className="block w-full text-left py-2 text-[hsl(var(--muted-foreground))] hover:text-white text-base"
+          >
+            Замын зураг
           </button>
           <button
             onClick={() => scrollToSection('about')}

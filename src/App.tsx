@@ -7,6 +7,8 @@ import React from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { ProjectsSection } from './components/ProjectsSection';
+import { MiniGame } from './components/MiniGame';
+import { RoadmapSection } from './components/RoadmapSection';
 import { AboutSection } from './components/AboutSection';
 import { HobbiesSection } from './components/HobbiesSection';
 import { Footer } from './components/Footer';
@@ -29,8 +31,14 @@ export default function App() {
 
       {/* Main Content Sections */}
       <main className="relative z-10 space-y-12">
-        {/* Projects Section */}
+        {/* Projects Section (Real Working Projects) */}
         <ProjectsSection />
+
+        {/* Interactive CS2 Reaction Challenge Game */}
+        <MiniGame />
+
+        {/* Learning Journey / Milestones Roadmap */}
+        <RoadmapSection />
 
         {/* About Section */}
         <AboutSection />
