@@ -1,0 +1,6 @@
+{
+  "name": "Эрдэнэ-Очирын Портфолио",
+  "description": "14 настай суралцагч, вэб сонирхогч Эрдэнэ-Очирын бүтээлүүд болон танилцуулга сайт",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
