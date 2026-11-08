@@ -21,6 +21,8 @@ export interface ProfileData {
   favoriteGame: string;
   photoUrl: string;
   netlifyUrl: string;
+  javascriptUrl: string;
+  vercelUrl?: string;
   videoUrl: string;
   skills: string[];
 }

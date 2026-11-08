@@ -28,12 +28,22 @@ export const Footer: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-6">
             <a
+              href={profileData.javascriptUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="liquid-glass rounded-full px-5 py-2.5 text-sm text-amber-200 inline-flex items-center gap-2 hover:scale-[1.03] transition-transform cursor-pointer border-amber-400/30"
+            >
+              <span>JS бодлогууд</span>
+              <ArrowUpRight className="w-4 h-4 text-amber-300" />
+            </a>
+
+            <a
               href={profileData.netlifyUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="liquid-glass rounded-full px-6 py-2.5 text-sm text-white inline-flex items-center gap-2 hover:scale-[1.03] transition-transform cursor-pointer"
+              className="liquid-glass rounded-full px-5 py-2.5 text-sm text-white inline-flex items-center gap-2 hover:scale-[1.03] transition-transform cursor-pointer"
             >
-              <span>Үндсэн Netlify хуудас</span>
+              <span>Үндсэн Netlify</span>
               <ArrowUpRight className="w-4 h-4" />
             </a>
 

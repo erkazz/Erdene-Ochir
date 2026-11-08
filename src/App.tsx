@@ -7,7 +7,7 @@ import React from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { ProjectsSection } from './components/ProjectsSection';
-import { MiniGame } from './components/MiniGame';
+import { JavaScriptSection } from './components/JavaScriptSection';
 import { RoadmapSection } from './components/RoadmapSection';
 import { AboutSection } from './components/AboutSection';
 import { HobbiesSection } from './components/HobbiesSection';
@@ -34,8 +34,8 @@ export default function App() {
         {/* Projects Section (Real Working Projects) */}
         <ProjectsSection />
 
-        {/* Interactive CS2 Reaction Challenge Game */}
-        <MiniGame />
+        {/* JavaScript Exercises & Code Playground Section (replaces minigame) */}
+        <JavaScriptSection />
 
         {/* Learning Journey / Milestones Roadmap */}
         <RoadmapSection />

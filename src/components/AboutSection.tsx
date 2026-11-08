@@ -73,16 +73,26 @@ export const AboutSection: React.FC = () => {
               </p>
             </div>
 
-            {/* Link to Netlify Site */}
-            <div className="w-full mt-8 pt-6 border-t border-white/10">
+            {/* Links to Projects */}
+            <div className="w-full mt-8 pt-6 border-t border-white/10 space-y-2.5">
+              <a
+                href={profileData.javascriptUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full liquid-glass rounded-xl py-3 px-4 text-xs sm:text-sm text-amber-200 font-semibold flex items-center justify-center gap-2 hover:bg-white/10 transition-colors cursor-pointer border border-amber-400/30"
+              >
+                <span>JavaScript кодын дасгал сайт</span>
+                <ExternalLink className="w-4 h-4 text-amber-300 opacity-90" />
+              </a>
+
               <a
                 href={profileData.netlifyUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full liquid-glass rounded-xl py-3 px-4 text-sm text-white font-medium flex items-center justify-center gap-2 hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-full liquid-glass rounded-xl py-2.5 px-4 text-xs text-white/80 font-medium flex items-center justify-center gap-2 hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <span>Миний үндсэн Netlify сайт</span>
-                <ExternalLink className="w-4 h-4 opacity-70" />
+                <span>Миний анхны Netlify сайт</span>
+                <ExternalLink className="w-3.5 h-3.5 opacity-60" />
               </a>
             </div>
           </div>

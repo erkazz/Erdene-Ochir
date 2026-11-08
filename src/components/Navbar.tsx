@@ -57,10 +57,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
             Миний бүтээлүүд
           </button>
           <button
-            onClick={() => scrollToSection('game')}
-            className="text-sm text-amber-300 hover:text-white transition-colors cursor-pointer"
+            onClick={() => scrollToSection('javascript')}
+            className="text-sm text-amber-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1 font-medium"
           >
-            Сорилт тоглоом 🎯
+            <span>JS бодлогууд</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-200 border border-amber-400/30">Шинэ</span>
           </button>
           <button
             onClick={() => scrollToSection('roadmap')}
@@ -129,10 +130,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
             Миний бүтээлүүд
           </button>
           <button
-            onClick={() => scrollToSection('game')}
-            className="block w-full text-left py-2 text-amber-300 font-medium text-base"
+            onClick={() => scrollToSection('javascript')}
+            className="block w-full text-left py-2 text-amber-300 font-medium text-base flex items-center justify-between"
           >
-            Сорилт тоглоом 🎯
+            <span>JavaScript бодлогууд</span>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-400/20 text-amber-200 border border-amber-400/30">Шинэ төсөл</span>
           </button>
           <button
             onClick={() => scrollToSection('roadmap')}
