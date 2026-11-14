@@ -13,17 +13,41 @@ import {
   UserCheck,
   ArrowRight,
   Loader2,
+  Medal,
+  Crown,
+  Save,
+  ArrowLeft,
+  Calendar,
 } from 'lucide-react';
+import {
+  addDoc,
+  collection,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore';
 import animeData from '../data/data.json';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 
 type GameMode = 'emoji' | 'anime' | 'character';
-type GameScreen = 'menu' | 'playing' | 'finished';
+type GameScreen = 'menu' | 'playing' | 'finished' | 'leaderboard';
 
 interface AnimeQuestion {
   emoji?: string;
   image: string;
   answer: string;
   options: string[];
+}
+
+interface ScoreRecord {
+  id: string;
+  name: string;
+  score: number;
+  mode: GameMode;
+  createdAt: Timestamp | null;
 }
 
 const QUESTION_TIME = 15;
@@ -37,6 +61,17 @@ function shuffleArray<T>(items: T[]): T[] {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+function formatScoreDate(ts: Timestamp | null): string {
+  if (!ts || typeof ts.toDate !== 'function') return 'Саяхан';
+  const date = ts.toDate();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${y}.${m}.${d} ${hh}:${mm}`;
 }
 
 export const AnimeGuessSection: React.FC = () => {
@@ -53,6 +88,18 @@ export const AnimeGuessSection: React.FC = () => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [answerStatus, setAnswerStatus] = useState<'idle' | 'correct' | 'wrong' | 'timeout'>('idle');
   const [imageReady, setImageReady] = useState(true);
+
+  // Score saving state (on finished screen)
+  const [playerName, setPlayerName] = useState('');
+  const [isSavingScore, setIsSavingScore] = useState(false);
+  const [scoreSaved, setScoreSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Leaderboard state
+  const [leaderboardTab, setLeaderboardTab] = useState<GameMode>('emoji');
+  const [allScores, setAllScores] = useState<ScoreRecord[]>([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -81,7 +128,6 @@ export const AnimeGuessSection: React.FC = () => {
       }));
     }
 
-    // Emoji mode
     return shuffleArray(animeData.questions).map((item) => ({
       ...item,
       options: shuffleArray(item.options),
@@ -101,7 +147,17 @@ export const AnimeGuessSection: React.FC = () => {
     setSelectedOption(null);
     setAnswerStatus('idle');
     setImageReady(selectedMode === 'emoji');
+    setScoreSaved(false);
+    setSaveError(null);
     setScreen('playing');
+  };
+
+  const openLeaderboard = (initialTab?: GameMode) => {
+    clearAdvanceTimer();
+    if (initialTab) {
+      setLeaderboardTab(initialTab);
+    }
+    setScreen('leaderboard');
   };
 
   const currentQuestion = questions[currentIndex];
@@ -123,7 +179,7 @@ export const AnimeGuessSection: React.FC = () => {
     [currentIndex, questions.length, mode]
   );
 
-  // Skip broken/unloaded images automatically in Anime/Character modes without penalty
+  // Skip broken/unloaded images automatically without penalty
   const handleImageError = () => {
     if (screen !== 'playing' || answerStatus !== 'idle') return;
     clearAdvanceTimer();
@@ -148,7 +204,6 @@ export const AnimeGuessSection: React.FC = () => {
       return;
     }
 
-    // Wait until image loads in image-based modes before ticking down
     if ((mode === 'anime' || mode === 'character') && !imageReady) {
       return;
     }
@@ -174,6 +229,54 @@ export const AnimeGuessSection: React.FC = () => {
     return () => clearAdvanceTimer();
   }, []);
 
+  // Live Firestore Leaderboard listener
+  useEffect(() => {
+    if (screen !== 'leaderboard') return;
+
+    setLeaderboardLoading(true);
+    setLeaderboardError(null);
+
+    const scoresRef = collection(db, 'scores');
+    const q = query(scoresRef, orderBy('score', 'desc'), limit(300));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const rows: ScoreRecord[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            name: typeof data.name === 'string' ? data.name : 'Тоглогч',
+            score: typeof data.score === 'number' ? data.score : 0,
+            mode:
+              data.mode === 'anime' || data.mode === 'character'
+                ? data.mode
+                : 'emoji',
+            createdAt: data.createdAt ?? null,
+          };
+        });
+        setAllScores(rows);
+        setLeaderboardLoading(false);
+      },
+      (error) => {
+        setLeaderboardLoading(false);
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes('Quota exceeded')) {
+          setLeaderboardError('Өдрийн үнэгүй уншилтын хязгаар хэтэрлээ. Маргааш дахин оролдоно уу.');
+        } else {
+          setLeaderboardError('Онооны самбарыг ачааллахад алдаа гарлаа.');
+        }
+        try {
+          handleFirestoreError(error, OperationType.LIST, 'scores');
+        } catch {
+          // Handled via UI state
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, [screen]);
+
   const handleOptionSelect = (option: string) => {
     if (answerStatus !== 'idle' || !currentQuestion) return;
 
@@ -197,7 +300,44 @@ export const AnimeGuessSection: React.FC = () => {
     }
   };
 
-  // Calculate blur pixels for Anime mode (clears every 3 seconds)
+  const handleSaveScore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSavingScore || scoreSaved) return;
+
+    const trimmedName = playerName.trim().slice(0, 40);
+    if (!trimmedName) {
+      setSaveError('Тоглогчийн нэрээ оруулна уу.');
+      return;
+    }
+
+    setIsSavingScore(true);
+    setSaveError(null);
+
+    try {
+      await addDoc(collection(db, 'scores'), {
+        name: trimmedName,
+        score,
+        mode,
+        createdAt: serverTimestamp(),
+      });
+      setScoreSaved(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('Quota exceeded')) {
+        setSaveError('Өдрийн үнэгүй хязгаар дууссан тул түр хадгалах боломжгүй байна.');
+      } else {
+        setSaveError('Оноо хадгалах үед алдаа гарлаа. Дахин оролдоно уу.');
+      }
+      try {
+        handleFirestoreError(error, OperationType.CREATE, 'scores');
+      } catch {
+        // Error info already logged by handleFirestoreError
+      }
+    } finally {
+      setIsSavingScore(false);
+    }
+  };
+
   const getBlurPx = (): number => {
     if (mode !== 'anime') return 0;
     if (answerStatus !== 'idle') return 0;
@@ -215,10 +355,15 @@ export const AnimeGuessSection: React.FC = () => {
   };
 
   const modeLabel: Record<GameMode, string> = {
-    emoji: 'Emoji горим',
-    anime: 'Anime зураг горим',
-    character: 'Баатар таах горим',
+    emoji: 'Emoji',
+    anime: 'Anime',
+    character: 'Баатар',
   };
+
+  const filteredTop10 = allScores
+    .filter((entry) => entry.mode === leaderboardTab)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
 
   return (
     <section id="anime-guess" className="relative py-28 px-6 sm:px-8 max-w-7xl mx-auto z-20">
@@ -237,8 +382,19 @@ export const AnimeGuessSection: React.FC = () => {
         </h2>
 
         <p className="text-[hsl(var(--muted-foreground))] text-base sm:text-lg mt-4 leading-relaxed">
-          Эможи, бүдэг зураг болон баатрын төрхөөр анимэ таах хөгжилтэй сорилт. 15 секундэд амжиж зөв хариулаад оноо цуглуулаарай!
+          Эможи, бүдэг зураг болон баатрын төрхөөр анимэ таах хөгжилтэй сорилт. 15 секундэд амжиж зөв хариулаад оноогоо Leaderboard-т бичүүлээрэй!
         </p>
+
+        {/* Quick Leaderboard Button */}
+        <div className="mt-7 flex justify-center">
+          <button
+            onClick={() => openLeaderboard(mode)}
+            className="liquid-glass rounded-full px-7 py-3 text-sm font-semibold text-amber-200 inline-flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer border border-amber-400/30 shadow-lg"
+          >
+            <Trophy className="w-4 h-4 text-amber-300" />
+            <span>Leaderboard (ТОП 10)</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Game Container */}
@@ -353,7 +509,6 @@ export const AnimeGuessSection: React.FC = () => {
           <div>
             {/* Always-visible HUD: Score, Lives, Timer */}
             <div className="flex flex-wrap items-center justify-between gap-4 pb-5 mb-5 border-b border-white/10">
-              {/* Score + Question Counter */}
               <div className="flex items-center gap-3">
                 <div className="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-400/25 flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-amber-300" />
@@ -366,7 +521,6 @@ export const AnimeGuessSection: React.FC = () => {
                 </span>
               </div>
 
-              {/* Lives */}
               <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
                 <span className="text-xs text-white/60 mr-1">Амь:</span>
                 {Array.from({ length: INITIAL_LIVES }).map((_, idx) => {
@@ -384,7 +538,6 @@ export const AnimeGuessSection: React.FC = () => {
                 })}
               </div>
 
-              {/* Timer + Switch Mode */}
               <div className="flex items-center gap-3">
                 <div
                   className={`px-4 py-2 rounded-xl border flex items-center gap-2 font-mono transition-colors ${
@@ -421,10 +574,9 @@ export const AnimeGuessSection: React.FC = () => {
               />
             </div>
 
-            {/* Mode Badge */}
             <div className="text-center mb-4">
               <span className="text-xs font-medium uppercase tracking-widest text-white/50">
-                {modeLabel[mode]}
+                {modeLabel[mode]} горим
               </span>
             </div>
 
@@ -576,7 +728,7 @@ export const AnimeGuessSection: React.FC = () => {
 
         {/* FINISHED SCREEN */}
         {screen === 'finished' && (
-          <div className="py-8 text-center space-y-6">
+          <div className="py-6 text-center space-y-6">
             <div className="w-20 h-20 rounded-3xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center mx-auto text-amber-300 shadow-lg">
               <Trophy className="w-10 h-10" />
             </div>
@@ -592,12 +744,12 @@ export const AnimeGuessSection: React.FC = () => {
                 Таны нийт оноо: {score}
               </h3>
               <p className="text-sm text-[hsl(var(--muted-foreground))] mt-2">
-                {modeLabel[mode]} • Зөв хариулсан: <strong className="text-white">{correctCount}</strong>
+                {modeLabel[mode]} горим • Зөв хариулсан: <strong className="text-white">{correctCount}</strong>
               </p>
             </div>
 
             {/* Stats Pills */}
-            <div className="grid grid-cols-3 gap-3 max-w-md mx-auto pt-2">
+            <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
                 <span className="text-xs text-white/50 block">Нийт оноо</span>
                 <span className="text-2xl font-bold text-amber-300 font-mono">{score}</span>
@@ -612,11 +764,71 @@ export const AnimeGuessSection: React.FC = () => {
               </div>
             </div>
 
+            {/* Save Score to Firestore Form */}
+            <div className="max-w-md mx-auto rounded-2xl bg-black/35 border border-white/15 p-5 text-left">
+              {!scoreSaved ? (
+                <form onSubmit={handleSaveScore} className="space-y-3">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-sky-300">
+                    Оноогоо Leaderboard-т хадгалах
+                  </label>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    Тоглогчийн нэрээ бичээд хадгална уу ({modeLabel[mode]} · {score} оноо):
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+                    <input
+                      type="text"
+                      maxLength={40}
+                      value={playerName}
+                      onChange={(e) => setPlayerName(e.target.value)}
+                      placeholder="Таны нэр (жишээ: Эрдэнэ-Очир)"
+                      className="flex-1 bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-sky-400"
+                      disabled={isSavingScore}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSavingScore}
+                      className="liquid-glass rounded-xl px-5 py-2.5 text-xs sm:text-sm font-semibold text-white inline-flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer border border-emerald-400/30 disabled:opacity-50"
+                    >
+                      {isSavingScore ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Хадгалж байна...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 text-emerald-300" />
+                          <span>Хадгалах</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {saveError && (
+                    <p className="text-xs text-rose-300 mt-1">{saveError}</p>
+                  )}
+                </form>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3 text-emerald-200">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-300 shrink-0" />
+                    <span>Амжилттай хадгалагдлаа!</span>
+                  </div>
+                  <button
+                    onClick={() => openLeaderboard(mode)}
+                    className="px-4 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/30 text-xs font-semibold text-emerald-100 cursor-pointer transition-colors"
+                  >
+                    Leaderboard харах →
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
               <button
                 onClick={() => startGame(mode)}
-                className="liquid-glass rounded-full px-8 py-3.5 text-sm font-semibold text-white inline-flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer border-sky-400/40"
+                className="liquid-glass rounded-full px-7 py-3 text-sm font-semibold text-white inline-flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer border-sky-400/40"
               >
                 <RotateCcw className="w-4 h-4 text-sky-300" />
                 <span>Дахин тоглох</span>
@@ -624,12 +836,196 @@ export const AnimeGuessSection: React.FC = () => {
 
               <button
                 onClick={() => setScreen('menu')}
-                className="liquid-glass rounded-full px-8 py-3.5 text-sm font-semibold text-white/90 inline-flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer"
+                className="liquid-glass rounded-full px-7 py-3 text-sm font-semibold text-white/90 inline-flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer"
               >
                 <SlidersHorizontal className="w-4 h-4 text-amber-300" />
                 <span>Горим солих</span>
               </button>
+
+              <button
+                onClick={() => openLeaderboard(mode)}
+                className="liquid-glass rounded-full px-7 py-3 text-sm font-semibold text-amber-200 inline-flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer border-amber-400/30"
+              >
+                <Trophy className="w-4 h-4 text-amber-300" />
+                <span>Leaderboard</span>
+              </button>
             </div>
+          </div>
+        )}
+
+        {/* LEADERBOARD SCREEN */}
+        {screen === 'leaderboard' && (
+          <div className="py-2">
+            {/* Top Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-4 pb-6 mb-6 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-300">
+                  <Trophy className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3
+                    style={{ fontFamily: "'Instrument Serif', serif" }}
+                    className="text-3xl text-white font-normal"
+                  >
+                    Шилдэг 10 тоглогч
+                  </h3>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    Оноогоор их → бага эрэмбэлэгдсэн (ТОП 10)
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setScreen('menu')}
+                className="liquid-glass rounded-full px-5 py-2.5 text-xs font-semibold text-white inline-flex items-center gap-2 hover:scale-[1.03] transition-transform cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Тоглоом руу буцах</span>
+              </button>
+            </div>
+
+            {/* Mode Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-2.5 mb-6">
+              {(['emoji', 'anime', 'character'] as GameMode[]).map((tabMode) => {
+                const isActive = leaderboardTab === tabMode;
+                return (
+                  <button
+                    key={tabMode}
+                    onClick={() => setLeaderboardTab(tabMode)}
+                    className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer inline-flex items-center gap-2 border ${
+                      isActive
+                        ? 'bg-sky-500/20 text-white border-sky-400/50 shadow-md'
+                        : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10 border-white/10'
+                    }`}
+                  >
+                    {tabMode === 'emoji' && <Smile className="w-4 h-4 text-amber-300" />}
+                    {tabMode === 'anime' && <ImageIcon className="w-4 h-4 text-sky-300" />}
+                    {tabMode === 'character' && <UserCheck className="w-4 h-4 text-emerald-300" />}
+                    <span>{modeLabel[tabMode]}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Leaderboard List */}
+            {leaderboardLoading ? (
+              <div className="py-16 flex flex-col items-center justify-center gap-3 text-white/60">
+                <Loader2 className="w-8 h-8 text-sky-300 animate-spin" />
+                <span className="text-sm">Leaderboard ачааллаж байна...</span>
+              </div>
+            ) : leaderboardError ? (
+              <div className="py-12 text-center rounded-2xl bg-rose-500/10 border border-rose-400/30 p-6">
+                <p className="text-sm text-rose-200">{leaderboardError}</p>
+              </div>
+            ) : filteredTop10.length === 0 ? (
+              <div className="py-14 text-center rounded-2xl bg-black/30 border border-white/10 p-6 space-y-4">
+                <Trophy className="w-10 h-10 text-white/25 mx-auto" />
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                  <strong>{modeLabel[leaderboardTab]}</strong> горимд одоогоор оноо хадгалагдаагүй байна. Хамгийн анхны тоглогч болоорой!
+                </p>
+                <button
+                  onClick={() => startGame(leaderboardTab)}
+                  className="liquid-glass rounded-full px-6 py-2.5 text-xs font-semibold text-white hover:scale-105 transition-transform cursor-pointer"
+                >
+                  {modeLabel[leaderboardTab]} горимоор тоглох →
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredTop10.map((entry, idx) => {
+                  const rank = idx + 1;
+                  const isFirst = rank === 1;
+                  const isSecond = rank === 2;
+                  const isThird = rank === 3;
+
+                  let rowClass =
+                    'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]';
+                  let rankBadgeClass =
+                    'bg-white/10 text-white/70 border-white/10';
+                  let scoreClass = 'text-sky-200';
+
+                  if (isFirst) {
+                    rowClass =
+                      'bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-transparent border-amber-400/50 shadow-[0_0_25px_rgba(251,191,36,0.12)]';
+                    rankBadgeClass =
+                      'bg-amber-400 text-black border-amber-200 font-black';
+                    scoreClass = 'text-amber-300';
+                  } else if (isSecond) {
+                    rowClass =
+                      'bg-gradient-to-r from-slate-300/15 via-slate-300/5 to-transparent border-slate-300/40';
+                    rankBadgeClass =
+                      'bg-slate-200 text-slate-900 border-white font-black';
+                    scoreClass = 'text-slate-200';
+                  } else if (isThird) {
+                    rowClass =
+                      'bg-gradient-to-r from-orange-500/15 via-orange-400/5 to-transparent border-orange-400/40';
+                    rankBadgeClass =
+                      'bg-orange-400 text-black border-orange-200 font-black';
+                    scoreClass = 'text-orange-300';
+                  }
+
+                  return (
+                    <div
+                      key={entry.id}
+                      className={`rounded-2xl px-4 sm:px-6 py-3.5 border flex items-center justify-between gap-4 transition-all ${rowClass}`}
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div
+                          className={`w-9 h-9 rounded-xl border flex items-center justify-center text-sm font-mono shrink-0 ${rankBadgeClass}`}
+                        >
+                          {isFirst ? (
+                            <Crown className="w-4 h-4" />
+                          ) : isSecond || isThird ? (
+                            <Medal className="w-4 h-4" />
+                          ) : (
+                            rank
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`font-semibold truncate ${
+                                rank <= 3 ? 'text-white text-base' : 'text-white/90 text-sm'
+                              }`}
+                            >
+                              {entry.name}
+                            </span>
+                            {isFirst && (
+                              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/30">
+                                #1 Аварга
+                              </span>
+                            )}
+                            {isSecond && (
+                              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-300/20 text-slate-200 border border-slate-300/30">
+                                #2 Дэд байр
+                              </span>
+                            )}
+                            {isThird && (
+                              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-orange-400/20 text-orange-200 border border-orange-400/30">
+                                #3 Гутгаар
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 text-[11px] text-white/45 mt-0.5">
+                            <Calendar className="w-3 h-3" />
+                            <span>{formatScoreDate(entry.createdAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className={`text-lg sm:text-xl font-bold font-mono ${scoreClass}`}>
+                          {entry.score}
+                        </span>
+                        <span className="text-xs text-white/50 ml-1">оноо</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

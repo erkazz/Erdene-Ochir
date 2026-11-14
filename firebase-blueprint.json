@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "ScoreEntry": {
+      "title": "ScoreEntry",
+      "description": "A player's Anime Guess game score entry for the public leaderboard",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Player display name"
+        },
+        "score": {
+          "type": "integer",
+          "description": "Total points scored in the round"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["emoji", "anime", "character"],
+          "description": "Game mode played (emoji, anime, or character)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the score was saved"
+        }
+      },
+      "required": ["name", "score", "mode", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/scores/{scoreId}": {
+      "schema": {
+        "$ref": "#/entities/ScoreEntry"
+      },
+      "description": "Public Anime Guess leaderboard scores sorted descending by score and filtered by game mode"
+    }
+  }
+}

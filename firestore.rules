@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidScoreEntry(data) {
+      return data.keys().hasAll(['name', 'score', 'mode', 'createdAt'])
+        && data.keys().hasOnly(['name', 'score', 'mode', 'createdAt'])
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 40
+        && data.score is int
+        && data.score >= 0
+        && data.score <= 200
+        && data.score % 10 == 0
+        && data.mode is string
+        && data.mode in ['emoji', 'anime', 'character']
+        && data.createdAt == request.time;
+    }
+
+    match /scores/{scoreId} {
+      // Public leaderboard: scores contain no PII (only display name, score, mode, timestamp)
+      allow get: if isValidId(scoreId);
+      allow list: if true;
+      allow create: if isValidId(scoreId) && isValidScoreEntry(incoming());
+      allow update, delete: if false;
+    }
+  }
+}
