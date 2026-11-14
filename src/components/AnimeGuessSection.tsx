@@ -16,7 +16,6 @@ import {
   Medal,
   Crown,
   Save,
-  ArrowLeft,
   Calendar,
 } from 'lucide-react';
 import {
@@ -33,7 +32,7 @@ import animeData from '../data/data.json';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 
 type GameMode = 'emoji' | 'anime' | 'character';
-type GameScreen = 'menu' | 'playing' | 'finished' | 'leaderboard';
+type GameScreen = 'menu' | 'playing' | 'finished';
 
 interface AnimeQuestion {
   emoji?: string;
@@ -93,15 +92,17 @@ export const AnimeGuessSection: React.FC = () => {
   const [playerName, setPlayerName] = useState('');
   const [isSavingScore, setIsSavingScore] = useState(false);
   const [scoreSaved, setScoreSaved] = useState(false);
+  const [lastSavedId, setLastSavedId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Leaderboard state
+  // Live Leaderboard state
   const [leaderboardTab, setLeaderboardTab] = useState<GameMode>('emoji');
   const [allScores, setAllScores] = useState<ScoreRecord[]>([]);
-  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const leaderboardRef = useRef<HTMLDivElement | null>(null);
 
   const clearAdvanceTimer = () => {
     if (advanceTimerRef.current) {
@@ -138,6 +139,7 @@ export const AnimeGuessSection: React.FC = () => {
     clearAdvanceTimer();
     const prepared = prepareQuestions(selectedMode);
     setMode(selectedMode);
+    setLeaderboardTab(selectedMode);
     setQuestions(prepared);
     setCurrentIndex(0);
     setScore(0);
@@ -148,16 +150,18 @@ export const AnimeGuessSection: React.FC = () => {
     setAnswerStatus('idle');
     setImageReady(selectedMode === 'emoji');
     setScoreSaved(false);
+    setLastSavedId(null);
     setSaveError(null);
     setScreen('playing');
   };
 
-  const openLeaderboard = (initialTab?: GameMode) => {
-    clearAdvanceTimer();
-    if (initialTab) {
-      setLeaderboardTab(initialTab);
+  const scrollToLeaderboard = (targetTab?: GameMode) => {
+    if (targetTab) {
+      setLeaderboardTab(targetTab);
     }
-    setScreen('leaderboard');
+    if (leaderboardRef.current) {
+      leaderboardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const currentQuestion = questions[currentIndex];
@@ -229,38 +233,70 @@ export const AnimeGuessSection: React.FC = () => {
     return () => clearAdvanceTimer();
   }, []);
 
-  // Live Firestore Leaderboard listener
+  // Always-on Live Firestore Leaderboard listener (with fallback if index is not yet built)
   useEffect(() => {
-    if (screen !== 'leaderboard') return;
+    let active = true;
+    let unsubscribePrimary: (() => void) | null = null;
+    let unsubscribeFallback: (() => void) | null = null;
 
     setLeaderboardLoading(true);
     setLeaderboardError(null);
 
     const scoresRef = collection(db, 'scores');
-    const q = query(scoresRef, orderBy('score', 'desc'), limit(300));
+    const primaryQuery = query(scoresRef, orderBy('score', 'desc'), limit(300));
 
-    const unsubscribe = onSnapshot(
-      q,
+    const mapSnapshotDocs = (docs: { id: string; data: () => Record<string, unknown> }[]): ScoreRecord[] =>
+      docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          name: typeof data.name === 'string' ? data.name : 'Тоглогч',
+          score: typeof data.score === 'number' ? data.score : 0,
+          mode:
+            data.mode === 'anime' || data.mode === 'character'
+              ? data.mode
+              : 'emoji',
+          createdAt: (data.createdAt as Timestamp) ?? null,
+        };
+      });
+
+    unsubscribePrimary = onSnapshot(
+      primaryQuery,
       (snapshot) => {
-        const rows: ScoreRecord[] = snapshot.docs.map((docSnap) => {
-          const data = docSnap.data();
-          return {
-            id: docSnap.id,
-            name: typeof data.name === 'string' ? data.name : 'Тоглогч',
-            score: typeof data.score === 'number' ? data.score : 0,
-            mode:
-              data.mode === 'anime' || data.mode === 'character'
-                ? data.mode
-                : 'emoji',
-            createdAt: data.createdAt ?? null,
-          };
-        });
-        setAllScores(rows);
+        if (!active) return;
+        setAllScores(mapSnapshotDocs(snapshot.docs));
         setLeaderboardLoading(false);
       },
       (error) => {
-        setLeaderboardLoading(false);
+        if (!active) return;
         const message = error instanceof Error ? error.message : String(error);
+
+        // If an index is required on Firestore Enterprise/Standard, fall back cleanly to unordered query + client sort
+        if (message.includes('index') || message.includes('failed-precondition')) {
+          const fallbackQuery = query(scoresRef, limit(300));
+          unsubscribeFallback = onSnapshot(
+            fallbackQuery,
+            (snap) => {
+              if (!active) return;
+              const rows = mapSnapshotDocs(snap.docs).sort((a, b) => b.score - a.score);
+              setAllScores(rows);
+              setLeaderboardLoading(false);
+            },
+            (fallbackErr) => {
+              if (!active) return;
+              setLeaderboardLoading(false);
+              setLeaderboardError('Онооны самбарыг ачааллахад алдаа гарлаа.');
+              try {
+                handleFirestoreError(fallbackErr, OperationType.LIST, 'scores');
+              } catch {
+                // Logged by handleFirestoreError
+              }
+            }
+          );
+          return;
+        }
+
+        setLeaderboardLoading(false);
         if (message.includes('Quota exceeded')) {
           setLeaderboardError('Өдрийн үнэгүй уншилтын хязгаар хэтэрлээ. Маргааш дахин оролдоно уу.');
         } else {
@@ -274,8 +310,12 @@ export const AnimeGuessSection: React.FC = () => {
       }
     );
 
-    return () => unsubscribe();
-  }, [screen]);
+    return () => {
+      active = false;
+      if (unsubscribePrimary) unsubscribePrimary();
+      if (unsubscribeFallback) unsubscribeFallback();
+    };
+  }, []);
 
   const handleOptionSelect = (option: string) => {
     if (answerStatus !== 'idle' || !currentQuestion) return;
@@ -314,13 +354,15 @@ export const AnimeGuessSection: React.FC = () => {
     setSaveError(null);
 
     try {
-      await addDoc(collection(db, 'scores'), {
+      const docRef = await addDoc(collection(db, 'scores'), {
         name: trimmedName,
         score,
         mode,
         createdAt: serverTimestamp(),
       });
       setScoreSaved(true);
+      setLastSavedId(docRef.id);
+      setLeaderboardTab(mode);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes('Quota exceeded')) {
@@ -331,7 +373,7 @@ export const AnimeGuessSection: React.FC = () => {
       try {
         handleFirestoreError(error, OperationType.CREATE, 'scores');
       } catch {
-        // Error info already logged by handleFirestoreError
+        // Logged by handleFirestoreError
       }
     } finally {
       setIsSavingScore(false);
@@ -388,7 +430,7 @@ export const AnimeGuessSection: React.FC = () => {
         {/* Quick Leaderboard Button */}
         <div className="mt-7 flex justify-center">
           <button
-            onClick={() => openLeaderboard(mode)}
+            onClick={() => scrollToLeaderboard(mode)}
             className="liquid-glass rounded-full px-7 py-3 text-sm font-semibold text-amber-200 inline-flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer border border-amber-400/30 shadow-lg"
           >
             <Trophy className="w-4 h-4 text-amber-300" />
@@ -815,10 +857,10 @@ export const AnimeGuessSection: React.FC = () => {
                     <span>Амжилттай хадгалагдлаа!</span>
                   </div>
                   <button
-                    onClick={() => openLeaderboard(mode)}
+                    onClick={() => scrollToLeaderboard(mode)}
                     className="px-4 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/30 text-xs font-semibold text-emerald-100 cursor-pointer transition-colors"
                   >
-                    Leaderboard харах →
+                    Доорх самбараас харах ↓
                   </button>
                 </div>
               )}
@@ -843,7 +885,7 @@ export const AnimeGuessSection: React.FC = () => {
               </button>
 
               <button
-                onClick={() => openLeaderboard(mode)}
+                onClick={() => scrollToLeaderboard(mode)}
                 className="liquid-glass rounded-full px-7 py-3 text-sm font-semibold text-amber-200 inline-flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer border-amber-400/30"
               >
                 <Trophy className="w-4 h-4 text-amber-300" />
@@ -852,180 +894,190 @@ export const AnimeGuessSection: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
 
-        {/* LEADERBOARD SCREEN */}
-        {screen === 'leaderboard' && (
-          <div className="py-2">
-            {/* Top Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-6 mb-6 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-300">
-                  <Trophy className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3
-                    style={{ fontFamily: "'Instrument Serif', serif" }}
-                    className="text-3xl text-white font-normal"
-                  >
-                    Шилдэг 10 тоглогч
-                  </h3>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                    Оноогоор их → бага эрэмбэлэгдсэн (ТОП 10)
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setScreen('menu')}
-                className="liquid-glass rounded-full px-5 py-2.5 text-xs font-semibold text-white inline-flex items-center gap-2 hover:scale-[1.03] transition-transform cursor-pointer"
+      {/* ALWAYS-VISIBLE LIVE LEADERBOARD PANEL */}
+      <div
+        ref={leaderboardRef}
+        id="anime-leaderboard"
+        className="liquid-card rounded-3xl p-6 sm:p-10 max-w-4xl mx-auto mt-8 border-amber-400/20 shadow-2xl scroll-mt-24"
+      >
+        {/* Top Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-6 mb-6 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-300">
+              <Trophy className="w-5 h-5" />
+            </div>
+            <div>
+              <h3
+                style={{ fontFamily: "'Instrument Serif', serif" }}
+                className="text-3xl text-white font-normal"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Тоглоом руу буцах</span>
+                Шилдэг 10 тоглогч (Leaderboard)
+              </h3>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Firestore-оос оноогоор их → бага эрэмбэлэгдсэн (ТОП 10)
+              </p>
+            </div>
+          </div>
+
+          <span className="text-xs font-mono text-white/60 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+            Нийт бичлэг: {allScores.filter((s) => s.mode === leaderboardTab).length}
+          </span>
+        </div>
+
+        {/* Mode Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-2.5 mb-6">
+          {(['emoji', 'anime', 'character'] as GameMode[]).map((tabMode) => {
+            const isActive = leaderboardTab === tabMode;
+            const modeCount = allScores.filter((s) => s.mode === tabMode).length;
+            return (
+              <button
+                key={tabMode}
+                onClick={() => setLeaderboardTab(tabMode)}
+                className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer inline-flex items-center gap-2 border ${
+                  isActive
+                    ? 'bg-sky-500/20 text-white border-sky-400/50 shadow-md'
+                    : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10 border-white/10'
+                }`}
+              >
+                {tabMode === 'emoji' && <Smile className="w-4 h-4 text-amber-300" />}
+                {tabMode === 'anime' && <ImageIcon className="w-4 h-4 text-sky-300" />}
+                {tabMode === 'character' && <UserCheck className="w-4 h-4 text-emerald-300" />}
+                <span>{modeLabel[tabMode]}</span>
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-black/30 text-white/70">
+                  {modeCount}
+                </span>
               </button>
-            </div>
+            );
+          })}
+        </div>
 
-            {/* Mode Filter Tabs */}
-            <div className="flex flex-wrap items-center gap-2.5 mb-6">
-              {(['emoji', 'anime', 'character'] as GameMode[]).map((tabMode) => {
-                const isActive = leaderboardTab === tabMode;
-                return (
-                  <button
-                    key={tabMode}
-                    onClick={() => setLeaderboardTab(tabMode)}
-                    className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer inline-flex items-center gap-2 border ${
-                      isActive
-                        ? 'bg-sky-500/20 text-white border-sky-400/50 shadow-md'
-                        : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10 border-white/10'
-                    }`}
-                  >
-                    {tabMode === 'emoji' && <Smile className="w-4 h-4 text-amber-300" />}
-                    {tabMode === 'anime' && <ImageIcon className="w-4 h-4 text-sky-300" />}
-                    {tabMode === 'character' && <UserCheck className="w-4 h-4 text-emerald-300" />}
-                    <span>{modeLabel[tabMode]}</span>
-                  </button>
-                );
-              })}
-            </div>
+        {/* Leaderboard List */}
+        {leaderboardLoading ? (
+          <div className="py-12 flex flex-col items-center justify-center gap-3 text-white/60">
+            <Loader2 className="w-8 h-8 text-sky-300 animate-spin" />
+            <span className="text-sm">Онооны самбар ачааллаж байна...</span>
+          </div>
+        ) : leaderboardError ? (
+          <div className="py-10 text-center rounded-2xl bg-rose-500/10 border border-rose-400/30 p-6">
+            <p className="text-sm text-rose-200">{leaderboardError}</p>
+          </div>
+        ) : filteredTop10.length === 0 ? (
+          <div className="py-12 text-center rounded-2xl bg-black/30 border border-white/10 p-6 space-y-4">
+            <Trophy className="w-10 h-10 text-white/25 mx-auto" />
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              <strong>{modeLabel[leaderboardTab]}</strong> горимд одоогоор оноо хадгалагдаагүй байна. Тоглоод хамгийн анхны оноог бичүүлээрэй!
+            </p>
+            <button
+              onClick={() => startGame(leaderboardTab)}
+              className="liquid-glass rounded-full px-6 py-2.5 text-xs font-semibold text-white hover:scale-105 transition-transform cursor-pointer"
+            >
+              {modeLabel[leaderboardTab]} горимоор тоглох →
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredTop10.map((entry, idx) => {
+              const rank = idx + 1;
+              const isFirst = rank === 1;
+              const isSecond = rank === 2;
+              const isThird = rank === 3;
+              const isJustSaved = lastSavedId === entry.id;
 
-            {/* Leaderboard List */}
-            {leaderboardLoading ? (
-              <div className="py-16 flex flex-col items-center justify-center gap-3 text-white/60">
-                <Loader2 className="w-8 h-8 text-sky-300 animate-spin" />
-                <span className="text-sm">Leaderboard ачааллаж байна...</span>
-              </div>
-            ) : leaderboardError ? (
-              <div className="py-12 text-center rounded-2xl bg-rose-500/10 border border-rose-400/30 p-6">
-                <p className="text-sm text-rose-200">{leaderboardError}</p>
-              </div>
-            ) : filteredTop10.length === 0 ? (
-              <div className="py-14 text-center rounded-2xl bg-black/30 border border-white/10 p-6 space-y-4">
-                <Trophy className="w-10 h-10 text-white/25 mx-auto" />
-                <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                  <strong>{modeLabel[leaderboardTab]}</strong> горимд одоогоор оноо хадгалагдаагүй байна. Хамгийн анхны тоглогч болоорой!
-                </p>
-                <button
-                  onClick={() => startGame(leaderboardTab)}
-                  className="liquid-glass rounded-full px-6 py-2.5 text-xs font-semibold text-white hover:scale-105 transition-transform cursor-pointer"
+              let rowClass =
+                'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]';
+              let rankBadgeClass =
+                'bg-white/10 text-white/70 border-white/10';
+              let scoreClass = 'text-sky-200';
+
+              if (isFirst) {
+                rowClass =
+                  'bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-transparent border-amber-400/50 shadow-[0_0_25px_rgba(251,191,36,0.12)]';
+                rankBadgeClass =
+                  'bg-amber-400 text-black border-amber-200 font-black';
+                scoreClass = 'text-amber-300';
+              } else if (isSecond) {
+                rowClass =
+                  'bg-gradient-to-r from-slate-300/15 via-slate-300/5 to-transparent border-slate-300/40';
+                rankBadgeClass =
+                  'bg-slate-200 text-slate-900 border-white font-black';
+                scoreClass = 'text-slate-200';
+              } else if (isThird) {
+                rowClass =
+                  'bg-gradient-to-r from-orange-500/15 via-orange-400/5 to-transparent border-orange-400/40';
+                rankBadgeClass =
+                  'bg-orange-400 text-black border-orange-200 font-black';
+                scoreClass = 'text-orange-300';
+              }
+
+              return (
+                <div
+                  key={entry.id}
+                  className={`rounded-2xl px-4 sm:px-6 py-3.5 border flex items-center justify-between gap-4 transition-all ${rowClass} ${
+                    isJustSaved ? 'ring-2 ring-emerald-400/70' : ''
+                  }`}
                 >
-                  {modeLabel[leaderboardTab]} горимоор тоглох →
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredTop10.map((entry, idx) => {
-                  const rank = idx + 1;
-                  const isFirst = rank === 1;
-                  const isSecond = rank === 2;
-                  const isThird = rank === 3;
-
-                  let rowClass =
-                    'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]';
-                  let rankBadgeClass =
-                    'bg-white/10 text-white/70 border-white/10';
-                  let scoreClass = 'text-sky-200';
-
-                  if (isFirst) {
-                    rowClass =
-                      'bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-transparent border-amber-400/50 shadow-[0_0_25px_rgba(251,191,36,0.12)]';
-                    rankBadgeClass =
-                      'bg-amber-400 text-black border-amber-200 font-black';
-                    scoreClass = 'text-amber-300';
-                  } else if (isSecond) {
-                    rowClass =
-                      'bg-gradient-to-r from-slate-300/15 via-slate-300/5 to-transparent border-slate-300/40';
-                    rankBadgeClass =
-                      'bg-slate-200 text-slate-900 border-white font-black';
-                    scoreClass = 'text-slate-200';
-                  } else if (isThird) {
-                    rowClass =
-                      'bg-gradient-to-r from-orange-500/15 via-orange-400/5 to-transparent border-orange-400/40';
-                    rankBadgeClass =
-                      'bg-orange-400 text-black border-orange-200 font-black';
-                    scoreClass = 'text-orange-300';
-                  }
-
-                  return (
+                  <div className="flex items-center gap-3.5 min-w-0">
                     <div
-                      key={entry.id}
-                      className={`rounded-2xl px-4 sm:px-6 py-3.5 border flex items-center justify-between gap-4 transition-all ${rowClass}`}
+                      className={`w-9 h-9 rounded-xl border flex items-center justify-center text-sm font-mono shrink-0 ${rankBadgeClass}`}
                     >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div
-                          className={`w-9 h-9 rounded-xl border flex items-center justify-center text-sm font-mono shrink-0 ${rankBadgeClass}`}
+                      {isFirst ? (
+                        <Crown className="w-4 h-4" />
+                      ) : isSecond || isThird ? (
+                        <Medal className="w-4 h-4" />
+                      ) : (
+                        rank
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`font-semibold truncate ${
+                            rank <= 3 ? 'text-white text-base' : 'text-white/90 text-sm'
+                          }`}
                         >
-                          {isFirst ? (
-                            <Crown className="w-4 h-4" />
-                          ) : isSecond || isThird ? (
-                            <Medal className="w-4 h-4" />
-                          ) : (
-                            rank
-                          )}
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`font-semibold truncate ${
-                                rank <= 3 ? 'text-white text-base' : 'text-white/90 text-sm'
-                              }`}
-                            >
-                              {entry.name}
-                            </span>
-                            {isFirst && (
-                              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/30">
-                                #1 Аварга
-                              </span>
-                            )}
-                            {isSecond && (
-                              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-300/20 text-slate-200 border border-slate-300/30">
-                                #2 Дэд байр
-                              </span>
-                            )}
-                            {isThird && (
-                              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-orange-400/20 text-orange-200 border border-orange-400/30">
-                                #3 Гутгаар
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 text-[11px] text-white/45 mt-0.5">
-                            <Calendar className="w-3 h-3" />
-                            <span>{formatScoreDate(entry.createdAt)}</span>
-                          </div>
-                        </div>
+                          {entry.name}
+                        </span>
+                        {isFirst && (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/30">
+                            #1 Аварга
+                          </span>
+                        )}
+                        {isSecond && (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-300/20 text-slate-200 border border-slate-300/30">
+                            #2 Дэд байр
+                          </span>
+                        )}
+                        {isThird && (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-orange-400/20 text-orange-200 border border-orange-400/30">
+                            #3 Гутгаар
+                          </span>
+                        )}
+                        {isJustSaved && (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-400/30">
+                            Таны оноо
+                          </span>
+                        )}
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <span className={`text-lg sm:text-xl font-bold font-mono ${scoreClass}`}>
-                          {entry.score}
-                        </span>
-                        <span className="text-xs text-white/50 ml-1">оноо</span>
+                      <div className="flex items-center gap-1.5 text-[11px] text-white/45 mt-0.5">
+                        <Calendar className="w-3 h-3" />
+                        <span>{formatScoreDate(entry.createdAt)}</span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className={`text-lg sm:text-xl font-bold font-mono ${scoreClass}`}>
+                      {entry.score}
+                    </span>
+                    <span className="text-xs text-white/50 ml-1">оноо</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
