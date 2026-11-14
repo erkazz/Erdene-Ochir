@@ -1,0 +1,111 @@
+{
+  "questions": [
+    {
+      "emoji": "🍥🍜🦊",
+      "image": "https://static.wikia.nocookie.net/tenniszero/images/e/ea/Naruto.png/revision/latest/smart/width/300/height/300?cb=20250923131701",
+      "answer": "Naruto",
+      "options": ["Naruto", "Bleach", "One Piece", "Death Note"]
+    },
+    {
+      "emoji": "🏴☠️ 🍖 👒",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTw_yzXcaWeBZN5ELbOsgpvEvkvaJ6l_x6XxW2Xi4TXXg&s=10",
+      "answer": "One Piece",
+      "options": ["Bleach", "One Piece", "Naruto", "Dragon Ball"]
+    },
+    {
+      "emoji": "🍎 📓 💀",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTwh57PLMz_WMrAxve2B3qklJio3vdjwpeXe2TfkzP35A&s=10",
+      "answer": "Death Note",
+      "options": ["Death Note", "Code Geass", "Tokyo Ghoul", "Monster"]
+    },
+    {
+      "emoji": "⚔️ 🧟 🧱",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQigobSp1b1DRmp6xeC4hcycUCRnUXcP3XQTxdkHxd14w&s=10",
+      "answer": "Attack on Titan",
+      "options": ["Demon Slayer", "Attack on Titan", "Chainsaw Man", "Jujutsu Kaisen"]
+    },
+    {
+      "emoji": "🔥 👺 🗡️",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREizT78LAAb3XMSfopzFs7yZyHT8sE02yYtswmmiJxaA&s=10",
+      "answer": "Demon Slayer",
+      "options": ["Bleach", "Demon Slayer", "Jujutsu Kaisen", "Naruto"]
+    },
+    {
+      "emoji": "🐉 🟠 💪",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSqu80KKadmGPMZ0M0KqIcxOv1-BDGUZl3zI8bKa2N7vg&s=10",
+      "answer": "Dragon Ball Z",
+      "options": ["One Punch Man", "Dragon Ball Z", "Naruto", "Bleach"]
+    },
+    {
+      "emoji": "🤞 👹 🏫",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyHFj2_VxtQfMef4-S3uTbnNOp0IENYuaTaooEKXcotg&s=10",
+      "answer": "Jujutsu Kaisen",
+      "options": ["Jujutsu Kaisen", "Chainsaw Man", "Tokyo Ghoul", "Bleach"]
+    },
+    {
+      "emoji": "🪚 🐕 🩸",
+      "image": "https://thumb.wikimedia.org/wikipedia/en/thumb/2/24/Chainsawman.jpg/250px-Chainsawman.jpg?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
+      "answer": "Chainsaw Man",
+      "options": ["Attack on Titan", "Jujutsu Kaisen", "Chainsaw Man", "Tokyo Ghoul"]
+    },
+    {
+      "emoji": "👊 👨🦲 🦸",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS-2qGBX0kTjGl3xWEipiVLiOCzkX-B5a7o4o1RXSd2sg&s=10",
+      "answer": "One Punch Man",
+      "options": ["My Hero Academia", "Mob Psycho 100", "Dragon Ball Z", "One Punch Man"]
+    },
+    {
+      "emoji": "🦸♂️ 🏫 💥",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQBRXoVN6fs9oVWFILycvSH8LuZhIyV9PcDnsjNOGbZRQ&s=10",
+      "answer": "My Hero Academia",
+      "options": ["My Hero Academia", "Black Clover", "One Punch Man", "Hunter x Hunter"]
+    },
+    {
+      "emoji": "🦾 🧪 ⚗️",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTxld2HAKL9o-RMybKP300b6x-1gyRWmX0oFI0VMjBgRg&s=10",
+      "answer": "Fullmetal Alchemist",
+      "options": ["Steins;Gate", "Dr. Stone", "Fullmetal Alchemist", "Code Geass"]
+    },
+    {
+      "emoji": "🏐 🐦⬛ 🏆",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVudQwWHn8EuWJvoDn4jTqBJhHxDBp_9d86TZSw2zKxA&s=10",
+      "answer": "Haikyuu!!",
+      "options": ["Blue Lock", "Kuroko's Basketball", "Slam Dunk", "Haikyuu!!"]
+    },
+    {
+      "emoji": "⚽ 🔒 🥅",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcShmTmFQN6oVxob0TdW4oHmbW2z5F9j2b_SxbBBmrwqlw&s=10",
+      "answer": "Blue Lock",
+      "options": ["Haikyuu!!", "Blue Lock", "Captain Tsubasa", "Inazuma Eleven"]
+    },
+    {
+      "emoji": "👻 🗡️ 🍊",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT9iqrV1UGUQtrxa7TeSuGSyjiYC7D7n8JcxzeV4-pvjw&s=10",
+      "answer": "Bleach",
+      "options": ["Bleach", "Demon Slayer", "Jujutsu Kaisen", "Naruto"]
+    },
+    {
+      "emoji": "🕵️ 👨👩👧 🥜",
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQQAwpkTd0GA7vph_2KeNhUEOxqlFs3JH3BE89VtI4Dyg&s=10",
+      "answer": "Spy x Family",
+      "options": ["Death Note", "Spy x Family", "Kaguya-sama: Love Is War", "Detective Conan"]
+    }
+  ],
+  "characters": [
+    {
+      "image": "https://upload.wikimedia.org/wikipedia/en/c/cb/Monkey_D_Luffy.png",
+      "answer": "Luffy",
+      "options": ["Luffy", "Zoro", "Naruto", "Goku"]
+    },
+    {
+      "image": "https://upload.wikimedia.org/wikipedia/en/9/9a/NarutoUzumaki.png",
+      "answer": "Naruto",
+      "options": ["Sasuke", "Naruto", "Luffy", "Ichigo"]
+    },
+    {
+      "image": "https://upload.wikimedia.org/wikipedia/en/4/4c/GokumangaToriyama.png",
+      "answer": "Goku",
+      "options": ["Vegeta", "Gohan", "Goku", "Saitama"]
+    }
+  ]
+}

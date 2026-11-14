@@ -8,6 +8,7 @@ import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { ProjectsSection } from './components/ProjectsSection';
 import { JavaScriptSection } from './components/JavaScriptSection';
+import { AnimeGuessSection } from './components/AnimeGuessSection';
 import { RoadmapSection } from './components/RoadmapSection';
 import { AboutSection } from './components/AboutSection';
 import { HobbiesSection } from './components/HobbiesSection';
@@ -34,8 +35,11 @@ export default function App() {
         {/* Projects Section (Real Working Projects) */}
         <ProjectsSection />
 
-        {/* JavaScript Exercises & Code Playground Section (replaces minigame) */}
+        {/* JavaScript Exercises & Code Playground Section */}
         <JavaScriptSection />
+
+        {/* Anime Guess Game Section */}
+        <AnimeGuessSection />
 
         {/* Learning Journey / Milestones Roadmap */}
         <RoadmapSection />
