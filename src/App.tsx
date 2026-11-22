@@ -7,8 +7,7 @@ import React from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { ProjectsSection } from './components/ProjectsSection';
-import { JavaScriptSection } from './components/JavaScriptSection';
-import { AnimeGuessSection } from './components/AnimeGuessSection';
+import { GamesSection } from './components/GamesSection';
 import { RoadmapSection } from './components/RoadmapSection';
 import { AboutSection } from './components/AboutSection';
 import { HobbiesSection } from './components/HobbiesSection';
@@ -35,11 +34,8 @@ export default function App() {
         {/* Projects Section (Real Working Projects) */}
         <ProjectsSection />
 
-        {/* JavaScript Exercises & Code Playground Section */}
-        <JavaScriptSection />
-
-        {/* Anime Guess Game Section */}
-        <AnimeGuessSection />
+        {/* Games Section (JS бодлогууд + Anime Guess) */}
+        <GamesSection />
 
         {/* Learning Journey / Milestones Roadmap */}
         <RoadmapSection />

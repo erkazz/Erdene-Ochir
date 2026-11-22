@@ -42,7 +42,13 @@ import { auth, db, googleProvider, handleFirestoreError, OperationType } from '.
 
 type GameMode = 'emoji' | 'anime' | 'character';
 type GameScreen = 'menu' | 'playing' | 'finished';
-type ModalView = 'game' | 'leaderboard';
+export type AnimeModalView = 'game' | 'leaderboard';
+
+interface AnimeGuessSectionProps {
+  isOpen: boolean;
+  initialView?: AnimeModalView;
+  onClose: () => void;
+}
 
 interface AnimeQuestion {
   emoji?: string;
@@ -83,9 +89,12 @@ function formatScoreDate(ts: Timestamp | null): string {
   return `${y}.${m}.${d} ${hh}:${mm}`;
 }
 
-export const AnimeGuessSection: React.FC = () => {
-  const [isGameOpen, setIsGameOpen] = useState(false);
-  const [modalView, setModalView] = useState<ModalView>('game');
+export const AnimeGuessSection: React.FC<AnimeGuessSectionProps> = ({
+  isOpen,
+  initialView = 'game',
+  onClose,
+}) => {
+  const [modalView, setModalView] = useState<AnimeModalView>(initialView);
 
   const [screen, setScreen] = useState<GameScreen>('menu');
   const [mode, setMode] = useState<GameMode>('emoji');
@@ -129,22 +138,22 @@ export const AnimeGuessSection: React.FC = () => {
     }
   };
 
-  const openGameModal = (initialView: ModalView = 'game') => {
+  useEffect(() => {
+    if (!isOpen) return;
     clearAdvanceTimer();
     setModalView(initialView);
-    if (initialView === 'game' && screen === 'playing') {
-      // Keep clean state when opening from launcher
+    if (initialView === 'game') {
       setScreen('menu');
+      setAnswerStatus('idle');
     }
-    setIsGameOpen(true);
-  };
+  }, [isOpen, initialView]);
 
   const closeGameModal = useCallback(() => {
     clearAdvanceTimer();
-    setIsGameOpen(false);
     setScreen('menu');
     setAnswerStatus('idle');
-  }, []);
+    onClose();
+  }, [onClose]);
 
   const prepareQuestions = useCallback((selectedMode: GameMode): AnimeQuestion[] => {
     if (selectedMode === 'character') {
@@ -231,7 +240,7 @@ export const AnimeGuessSection: React.FC = () => {
 
   // Lock body scroll and handle Escape key while modal is open
   useEffect(() => {
-    if (!isGameOpen) return;
+    if (!isOpen) return;
 
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -247,11 +256,11 @@ export const AnimeGuessSection: React.FC = () => {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [isGameOpen, closeGameModal]);
+  }, [isOpen, closeGameModal]);
 
   // Countdown timer effect
   useEffect(() => {
-    if (!isGameOpen || modalView !== 'game' || screen !== 'playing' || answerStatus !== 'idle' || !currentQuestion) {
+    if (!isOpen || modalView !== 'game' || screen !== 'playing' || answerStatus !== 'idle' || !currentQuestion) {
       return;
     }
 
@@ -274,7 +283,7 @@ export const AnimeGuessSection: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isGameOpen, modalView, screen, answerStatus, timeLeft, currentQuestion, mode, imageReady, lives, moveToNextStep]);
+  }, [isOpen, modalView, screen, answerStatus, timeLeft, currentQuestion, mode, imageReady, lives, moveToNextStep]);
 
   useEffect(() => {
     return () => clearAdvanceTimer();
@@ -282,7 +291,7 @@ export const AnimeGuessSection: React.FC = () => {
 
   // Live Firestore Leaderboard listener (active when game modal is open)
   useEffect(() => {
-    if (!isGameOpen) return;
+    if (!isOpen) return;
 
     let active = true;
     let unsubscribePrimary: (() => void) | null = null;
@@ -363,7 +372,7 @@ export const AnimeGuessSection: React.FC = () => {
       if (unsubscribePrimary) unsubscribePrimary();
       if (unsubscribeFallback) unsubscribeFallback();
     };
-  }, [isGameOpen]);
+  }, [isOpen]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -499,69 +508,17 @@ export const AnimeGuessSection: React.FC = () => {
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 
+  if (!isOpen) return null;
+
   return (
-    <section id="anime-guess" className="relative py-24 px-6 sm:px-8 max-w-7xl mx-auto z-20">
-      {/* Compact Portfolio Launcher Card (not exposed openly until clicking Тоглох) */}
-      <div className="liquid-card rounded-3xl p-8 sm:p-12 max-w-4xl mx-auto border-sky-400/25 shadow-2xl text-center relative overflow-hidden">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase text-sky-300 bg-sky-500/10 border border-sky-400/30 mb-5">
-          <Gamepad2 className="w-3.5 h-3.5" />
-          <span>Интерактив Мини-Тоглоом</span>
-        </div>
-
-        <h2
-          style={{ fontFamily: "'Instrument Serif', serif" }}
-          className="text-4xl sm:text-6xl font-normal text-white tracking-tight"
-        >
-          Anime Guess
-        </h2>
-
-        <p className="text-[hsl(var(--muted-foreground))] text-base sm:text-lg mt-4 max-w-2xl mx-auto leading-relaxed">
-          Эможи, бүдэг зураг болон баатрын төрхөөр анимэ таах хөгжилтэй сорилт. Өрсөлдөөнд орж ТОП 10 онооны самбарт нэрээ мөнхлөөрэй!
-        </p>
-
-        {/* Compact Feature Pills */}
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-3 text-xs text-white/75">
-          <span className="px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10">
-            3 горим: Emoji · Anime · Баатар
-          </span>
-          <span className="px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10">
-            15 секунд · 3 амь
-          </span>
-          <span className="px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10">
-            Firebase ТОП 10 Leaderboard
-          </span>
-        </div>
-
-        {/* Main Launcher Buttons */}
-        <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
-          <button
-            onClick={() => openGameModal('game')}
-            className="liquid-glass rounded-full px-10 py-4 text-base font-semibold text-white inline-flex items-center gap-2.5 hover:scale-[1.04] active:scale-[0.98] transition-all cursor-pointer border border-sky-400/40 shadow-xl"
-          >
-            <Play className="w-5 h-5 fill-sky-300 text-sky-300" />
-            <span>Тоглох</span>
-          </button>
-
-          <button
-            onClick={() => openGameModal('leaderboard')}
-            className="liquid-glass rounded-full px-7 py-4 text-sm font-semibold text-amber-200 inline-flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer border border-amber-400/30"
-          >
-            <Trophy className="w-4 h-4 text-amber-300" />
-            <span>Leaderboard</span>
-          </button>
-        </div>
-      </div>
-
-      {/* DEDICATED GAME PORTAL / MODAL OVERLAY */}
-      {isGameOpen && (
-        <div
-          className="fixed inset-0 z-[100] bg-[#001222]/85 backdrop-blur-xl overflow-y-auto px-4 sm:px-6 py-8 sm:py-12 flex items-start sm:items-center justify-center"
-          onClick={() => {
-            if (modalView !== 'game' || screen !== 'playing') {
-              closeGameModal();
-            }
-          }}
-        >
+    <div
+      className="fixed inset-0 z-[100] bg-[#001222]/85 backdrop-blur-xl overflow-y-auto px-4 sm:px-6 py-8 sm:py-12 flex items-start sm:items-center justify-center"
+      onClick={() => {
+        if (modalView !== 'game' || screen !== 'playing') {
+          closeGameModal();
+        }
+      }}
+    >
           <div
             className="liquid-card rounded-3xl p-6 sm:p-10 w-full max-w-4xl border border-sky-400/30 shadow-2xl relative my-auto"
             onClick={(e) => e.stopPropagation()}
@@ -1312,9 +1269,7 @@ export const AnimeGuessSection: React.FC = () => {
                 )}
               </div>
             )}
-          </div>
         </div>
-      )}
-    </section>
+    </div>
   );
 };

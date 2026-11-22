@@ -57,16 +57,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
             Миний бүтээлүүд
           </button>
           <button
-            onClick={() => scrollToSection('javascript')}
-            className="text-sm text-amber-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1 font-medium"
+            onClick={() => scrollToSection('games')}
+            className="text-sm text-sky-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
           >
-            <span>JS бодлогууд</span>
-          </button>
-          <button
-            onClick={() => scrollToSection('anime-guess')}
-            className="text-sm text-sky-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1 font-medium"
-          >
-            <span>Anime Guess</span>
+            <span>Тоглоом</span>
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-400/20 text-sky-200 border border-sky-400/30">Шинэ</span>
           </button>
           <button
@@ -136,17 +130,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
             Миний бүтээлүүд
           </button>
           <button
-            onClick={() => scrollToSection('javascript')}
-            className="block w-full text-left py-2 text-amber-300 font-medium text-base"
-          >
-            JavaScript бодлогууд
-          </button>
-          <button
-            onClick={() => scrollToSection('anime-guess')}
+            onClick={() => scrollToSection('games')}
             className="block w-full text-left py-2 text-sky-300 font-medium text-base flex items-center justify-between"
           >
-            <span>Anime Guess</span>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-sky-400/20 text-sky-200 border border-sky-400/30">Шинэ тоглоом</span>
+            <span>Тоглоом (JS & Anime Guess)</span>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-sky-400/20 text-sky-200 border border-sky-400/30">Шинэ</span>
           </button>
           <button
             onClick={() => scrollToSection('roadmap')}

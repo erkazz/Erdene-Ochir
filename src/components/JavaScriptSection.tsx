@@ -1,5 +1,19 @@
-import React, { useState } from 'react';
-import { ExternalLink, Code2, Sparkles, Play, CheckCircle2, ArrowUpRight, Terminal, RefreshCw, Calculator, Calendar, ArrowRightLeft, GraduationCap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  ExternalLink,
+  Code2,
+  Sparkles,
+  Play,
+  CheckCircle2,
+  ArrowUpRight,
+  Terminal,
+  RefreshCw,
+  Calculator,
+  Calendar,
+  ArrowRightLeft,
+  GraduationCap,
+  X,
+} from 'lucide-react';
 import { profileData } from '../data/portfolioData';
 
 type ProblemId = 'amidarsan' | 'ireedui' | 'tongorog' | 'dun';
@@ -11,6 +25,11 @@ interface Problem {
   title: string;
   description: string;
   codeSnippet: string;
+}
+
+interface JavaScriptSectionProps {
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 const problems: Problem[] = [
@@ -65,7 +84,7 @@ const problems: Problem[] = [
   },
 ];
 
-export const JavaScriptSection: React.FC = () => {
+export const JavaScriptSection: React.FC<JavaScriptSectionProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<ProblemId>('amidarsan');
 
   // Problem 1: Amidarsan hugatsaa state
@@ -88,6 +107,27 @@ export const JavaScriptSection: React.FC = () => {
   // Problem 4: Dun state
   const [onooInput, setOnooInput] = useState<number>(95);
   const [dunResult, setDunResult] = useState<string | null>('A (Онц)');
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
 
   const activeProblem = problems.find((p) => p.id === activeTab)!;
 
@@ -121,41 +161,55 @@ export const JavaScriptSection: React.FC = () => {
   };
 
   return (
-    <section id="javascript" className="relative py-28 px-6 sm:px-8 max-w-7xl mx-auto z-20">
-      {/* Section Header */}
-      <div className="text-center max-w-3xl mx-auto mb-16">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase text-amber-300 bg-amber-500/10 border border-amber-400/30 mb-4">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Шинэ нэмэлт бүтээл</span>
+    <div
+      className="fixed inset-0 z-[100] bg-[#001222]/85 backdrop-blur-xl overflow-y-auto px-4 sm:px-6 py-8 sm:py-12 flex items-start sm:items-center justify-center"
+      onClick={onClose}
+    >
+      <div
+        className="liquid-card rounded-3xl p-6 sm:p-10 w-full max-w-5xl border border-amber-400/30 shadow-2xl relative my-auto overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Top Navigation Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-5 mb-6 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-300">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <span
+                style={{ fontFamily: "'Instrument Serif', serif" }}
+                className="text-2xl sm:text-3xl text-white font-normal block leading-none"
+              >
+                JavaScript бодлогууд
+              </span>
+              <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                Хичээл 8–11 · Интерактив кодын дасгал
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <a
+              href={profileData.javascriptUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-full text-xs font-semibold text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 inline-flex items-center gap-1.5 transition-colors"
+            >
+              <span>Сайт дээр үзэх</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </a>
+
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-400/40 text-white/70 hover:text-white transition-colors cursor-pointer"
+              aria-label="Хаах"
+              title="Тоглоом хэсэг рүү буцах"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <h2
-          style={{ fontFamily: "'Instrument Serif', serif" }}
-          className="text-4xl sm:text-6xl font-normal text-white tracking-tight"
-        >
-          JavaScript бодлогууд & Кодын дасгал
-        </h2>
-
-        <p className="text-[hsl(var(--muted-foreground))] text-base sm:text-lg mt-4 leading-relaxed">
-          Миний бие даан хөгжүүлсэн JavaScript дасгалын систем. Хэрэглэгчийн оролт, алгоритм, өгөгдөл боловсруулах бодлогуудыг эндээс шууд ажиллуулж үзэх боломжтой.
-        </p>
-
-        {/* Big CTA to actual site */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-          <a
-            href={profileData.javascriptUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="liquid-glass rounded-full px-8 py-3.5 text-sm sm:text-base font-semibold text-white inline-flex items-center gap-2.5 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer shadow-xl border-amber-400/40 bg-gradient-to-r from-amber-500/10 to-sky-500/10"
-          >
-            <span>erdene-ochir-javascript.netlify.app үзэх</span>
-            <ArrowUpRight className="w-4 h-4 text-amber-300" />
-          </a>
-        </div>
-      </div>
-
-      {/* Main Interactive Showcase Card */}
-      <div className="liquid-card rounded-3xl p-6 sm:p-10 border-amber-500/20 shadow-2xl relative overflow-hidden">
         {/* Top Tab Bar: Selection of exercises */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 pb-6 border-b border-white/10">
           <span className="text-xs font-mono uppercase tracking-wider text-white/40 mr-2 flex items-center gap-1.5">
@@ -434,6 +488,6 @@ export const JavaScriptSection: React.FC = () => {
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 };
